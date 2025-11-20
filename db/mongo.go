@@ -55,7 +55,7 @@ func InitMongo() error {
 	Client = client
 
 	// 检查 Time Series 集合
-	db := client.Database("monitor")
+	db := client.Database("health_check")
 	collections, _ := db.ListCollectionNames(ctx, bson.M{"name": "check_results"})
 	if len(collections) == 0 {
 		return errors.New("time series collection not found")
