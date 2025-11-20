@@ -16,8 +16,8 @@ func RegisterRoutes(r *gin.Engine) {
 	api.DELETE("/services/:id", serviceHandler.DeleteService)
 
 	// 端点管理
-	api.POST("/services/:serviceId/endpoints", endpointHandler.CreateEndpoint)
-	api.GET("/services/:serviceId/endpoints", endpointHandler.ListEndpoints)
+	api.POST("/services/:id/endpoints", endpointHandler.CreateEndpoint)
+	api.GET("/services/:id/endpoints", endpointHandler.ListEndpoints)
 
 	api.GET("/endpoints/:id", endpointHandler.GetEndpoint)
 	api.PUT("/endpoints/:id", endpointHandler.UpdateEndpoint)
