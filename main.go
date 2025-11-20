@@ -34,15 +34,18 @@ func main() {
 
 	// 4. 注册路由（示例）
 	handlers.RegisterRoutes(r)
-
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
 	// 5. 启动服务器（支持优雅退出）
 	srv := &http.Server{
-		Addr:    ":8080",
+		Addr:    ":" + port,
 		Handler: r,
 	}
 
 	go func() {
-		log.Println("Server running at http://localhost:8080")
+		log.Println("Server running ")
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Fatalf("Server failed: %s\n", err)
 		}
