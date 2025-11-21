@@ -20,7 +20,7 @@ func NewEndpointHandler() *EndpointHandler {
 }
 
 func (h *EndpointHandler) CreateEndpoint(c *gin.Context) {
-	serviceID, _ := primitive.ObjectIDFromHex(c.Param("serviceId"))
+	serviceID, _ := primitive.ObjectIDFromHex(c.Param("id"))
 
 	var ep models.Endpoint
 	if err := c.BindJSON(&ep); err != nil {
@@ -43,7 +43,7 @@ func (h *EndpointHandler) CreateEndpoint(c *gin.Context) {
 }
 
 func (h *EndpointHandler) ListEndpoints(c *gin.Context) {
-	serviceID, _ := primitive.ObjectIDFromHex(c.Param("serviceId"))
+	serviceID, _ := primitive.ObjectIDFromHex(c.Param("id"))
 
 	var result []models.Endpoint
 
