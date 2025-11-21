@@ -43,13 +43,27 @@ func (h *EndpointHandler) CreateEndpoint(c *gin.Context) {
 }
 
 func (h *EndpointHandler) ListEndpoints(c *gin.Context) {
-	serviceID, _ := primitive.ObjectIDFromHex(c.Param("id"))
+	serviceID, err := primitive.ObjectIDFromHex(c.Param("id"))
+	if err != nil {
+		c.JSON(400, gin.H{"error": "invalid service ID format", "details": err.Error()})
+		return
+	}
 
 	var result []models.Endpoint
 
-	cur, _ := db.DB().Collection("endpoints").
-		Find(context.TODO(), bson.M{"service_id": serviceID})
-	cur.All(context.TODO(), &result)
+	filter := bson.M{"service_id": serviceID}
+	cur, err := db.DB().Collection("endpoints").Find(context.TODO(), filter)
+	if err != nil {
+		c.JSON(500, gin.H{"error": "database query failed", "details": err.Error()})
+		return
+	}
+	defer cur.Close(context.TODO())
+
+	err = cur.All(context.TODO(), &result)
+	if err != nil {
+		c.JSON(500, gin.H{"error": "failed to decode results", "details": err.Error()})
+		return
+	}
 
 	c.JSON(200, result)
 }

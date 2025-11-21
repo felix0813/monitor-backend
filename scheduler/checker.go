@@ -83,7 +83,7 @@ func checkEndpoint(ep models.Endpoint) {
 	// 更新 Endpoint 状态
 	db.DB().Collection("endpoints").UpdateByID(ctx, ep.ID, bson.M{
 		"$set": bson.M{
-			"last_status":  result.Success,
+			"last_status":  "健康",
 			"last_latency": result.LatencyMS,
 			"updated_at":   time.Now(),
 		},
