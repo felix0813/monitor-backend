@@ -17,6 +17,31 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// CORS中间件函数
+func corsMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var allowedOrigin string
+		if os.Getenv("GIN_MODE") == "release" {
+			allowedOrigin = os.Getenv("ALLOWED_ORIGIN")
+		} else {
+			allowedOrigin = "*"
+		}
+
+		if allowedOrigin != "" {
+			c.Header("Access-Control-Allow-Origin", allowedOrigin)
+		}
+		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
+		c.Header("Access-Control-Allow-Headers", "Origin, Content-Type, Content-Length, Authorization")
+
+		if c.Request.Method == "OPTIONS" {
+			c.AbortWithStatus(204)
+			return
+		}
+
+		c.Next()
+	}
+}
+
 func main() {
 	// 1. 初始化 MongoDB
 	err := db.InitMongo()
@@ -30,18 +55,12 @@ func main() {
 	log.Println("Checker started")
 
 	// 3. 初始化 Gin
+	if os.Getenv("GIN_MODE") == "release" {
+		gin.SetMode(gin.ReleaseMode)
+	}
 	r := gin.Default()
 
-	r.Use(func(c *gin.Context) {
-		c.Header("Access-Control-Allow-Origin", "*")
-		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
-		c.Header("Access-Control-Allow-Headers", "Origin, Content-Type, Content-Length, Authorization")
-		if c.Request.Method == "OPTIONS" {
-			c.AbortWithStatus(204)
-			return
-		}
-		c.Next()
-	})
+	r.Use(corsMiddleware())
 	// 4. 注册路由（示例）
 	handlers.RegisterRoutes(r)
 	port := os.Getenv("PORT")
