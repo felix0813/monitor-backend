@@ -123,10 +123,14 @@ func (h *EndpointHandler) CheckEndpointNow(c *gin.Context) {
 		c.JSON(500, gin.H{"error": "check failed"})
 		return
 	}
-
+	// 将布尔值转换为字符串状态
+	status := "健康"
+	if !result.Success {
+		status = "异常"
+	}
 	db.DB().Collection("endpoints").UpdateByID(ctx, ep.ID, bson.M{
 		"$set": bson.M{
-			"last_status":  result.Success,
+			"last_status":  status,
 			"last_latency": result.LatencyMS,
 			"updated_at":   time.Now(),
 		},
