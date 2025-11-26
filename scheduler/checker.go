@@ -2,7 +2,9 @@ package scheduler
 
 import (
 	"context"
+	"log"
 	"net/http"
+	"sync"
 	"time"
 
 	"monitor/db"
@@ -10,6 +12,11 @@ import (
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
+)
+
+var (
+	checkingEndpoints = make(map[string]bool)
+	mutex             sync.Mutex
 )
 
 func StartChecker() {
@@ -23,10 +30,24 @@ func StartChecker() {
 			cursor.All(context.TODO(), &eps)
 
 			for _, ep := range eps {
-				// 达到检查间隔就执行一次
-				if time.Since(ep.UpdatedAt).Seconds() >= float64(ep.Interval) {
-					go checkEndpoint(ep)
+				endpointID := ep.ID.Hex()
+
+				mutex.Lock()
+				if checkingEndpoints[endpointID] {
+					mutex.Unlock()
+					continue // 正在检查中，跳过
 				}
+				checkingEndpoints[endpointID] = true
+				mutex.Unlock()
+
+				go func(ep models.Endpoint) {
+					defer func() {
+						mutex.Lock()
+						delete(checkingEndpoints, ep.ID.Hex())
+						mutex.Unlock()
+					}()
+					checkEndpoint(ep)
+				}(ep)
 			}
 		}
 	}()
@@ -79,13 +100,22 @@ func checkEndpoint(ep models.Endpoint) {
 	ctx := context.Background()
 
 	result, _ := PerformCheck(ctx, db.DB(), ep.ID.Hex(), ep.URL)
-
+	status := "健康"
+	if !result.Success {
+		status = "异常"
+	}
 	// 更新 Endpoint 状态
-	db.DB().Collection("endpoints").UpdateByID(ctx, ep.ID, bson.M{
+	_, err := db.DB().Collection("endpoints").UpdateByID(ctx, ep.ID, bson.M{
 		"$set": bson.M{
-			"last_status":  "健康",
+			"last_status":  status,
 			"last_latency": result.LatencyMS,
 			"updated_at":   time.Now(),
 		},
 	})
+
+	if err != nil {
+		// 记录错误日志
+		log.Printf("Failed to update endpoint %s status: %v", ep.ID.Hex(), err)
+		// 或者使用其他日志记录方式
+	}
 }
