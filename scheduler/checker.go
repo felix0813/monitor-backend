@@ -65,7 +65,12 @@ func shouldCheckEndpoint(ep models.Endpoint, now time.Time) bool {
 	if ep.UpdatedAt.IsZero() {
 		return true
 	}
-
+	// 检查上次检查是否失败且间隔大于5秒
+	if ep.LastStatus == "异常" && ep.Interval > 5 {
+		// 失败且interval大于5秒时，5秒后即可检查
+		nextRetryTime := ep.UpdatedAt.Add(5 * time.Second)
+		return now.After(nextRetryTime)
+	}
 	// 根据 interval 判断是否到了检查时间
 	// interval 是秒数
 	nextCheckTime := ep.UpdatedAt.Add(time.Duration(ep.Interval) * time.Second)
@@ -90,10 +95,16 @@ func PerformCheck(ctx context.Context, db *mongo.Database, endpointID, url strin
 
 	req, _ := http.NewRequestWithContext(ctx, "GET", url, nil)
 	client := &http.Client{Timeout: 5 * time.Second}
-
 	resp, err := client.Do(req)
-	success := err == nil && resp.StatusCode < 400
 	latency := time.Since(start).Milliseconds()
+	if err != nil {
+		return CheckResult{
+			Success:   false,
+			LatencyMS: latency,
+		}, err
+	}
+	defer resp.Body.Close()
+	success := resp.StatusCode < 400
 
 	result := CheckResult{
 		Success:   success,
