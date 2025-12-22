@@ -29,8 +29,14 @@ func StartChecker() {
 			cursor, _ := db.DB().Collection("endpoints").Find(context.TODO(), bson.M{})
 			cursor.All(context.TODO(), &eps)
 
+			now := time.Now()
 			for _, ep := range eps {
 				endpointID := ep.ID.Hex()
+
+				// 检查是否到了该端点的检查时间
+				if !shouldCheckEndpoint(ep, now) {
+					continue
+				}
 
 				mutex.Lock()
 				if checkingEndpoints[endpointID] {
@@ -51,6 +57,19 @@ func StartChecker() {
 			}
 		}
 	}()
+}
+
+// shouldCheckEndpoint 判断是否应该检查该端点
+func shouldCheckEndpoint(ep models.Endpoint, now time.Time) bool {
+	// 如果是第一次检查，应该检查
+	if ep.UpdatedAt.IsZero() {
+		return true
+	}
+
+	// 根据 interval 判断是否到了检查时间
+	// interval 是秒数
+	nextCheckTime := ep.UpdatedAt.Add(time.Duration(ep.Interval) * time.Second)
+	return now.After(nextCheckTime)
 }
 
 // ---------------------------
@@ -98,7 +117,7 @@ func PerformCheck(ctx context.Context, db *mongo.Database, endpointID, url strin
 
 func checkEndpoint(ep models.Endpoint) {
 	ctx := context.Background()
-
+	log.Println("Checking endpoint:", ep.URL)
 	result, _ := PerformCheck(ctx, db.DB(), ep.ID.Hex(), ep.URL)
 	status := "健康"
 	if !result.Success {
