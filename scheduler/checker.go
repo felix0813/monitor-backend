@@ -86,10 +86,6 @@ type CheckResult struct {
 	LatencyMS int64
 }
 
-// ---------------------------
-// PerformCheck（对外暴露）
-// ---------------------------
-
 func PerformCheck(ctx context.Context, db *mongo.Database, endpointID, url string) (CheckResult, error) {
 	start := time.Now()
 
@@ -97,29 +93,29 @@ func PerformCheck(ctx context.Context, db *mongo.Database, endpointID, url strin
 	client := &http.Client{Timeout: 5 * time.Second}
 	resp, err := client.Do(req)
 	latency := time.Since(start).Milliseconds()
+
+	success := true
 	if err != nil {
-		return CheckResult{
-			Success:   false,
-			LatencyMS: latency,
-		}, err
+		success = false
+	} else {
+		defer resp.Body.Close()
+		success = resp.StatusCode < 400
 	}
-	defer resp.Body.Close()
-	success := resp.StatusCode < 400
 
 	result := CheckResult{
 		Success:   success,
 		LatencyMS: latency,
 	}
-
-	// 插入时序数据
-	_, err = db.Collection("check_results").InsertOne(ctx, bson.M{
+	_, insertErr := db.Collection("check_results").InsertOne(ctx, bson.M{
 		"endpoint_id": endpointID,
 		"success":     success,
 		"latency_ms":  latency,
 		"checked_at":  time.Now(),
 	})
-
-	return result, err
+	if err != nil {
+		return result, err
+	}
+	return result, insertErr
 }
 
 // ---------------------------
