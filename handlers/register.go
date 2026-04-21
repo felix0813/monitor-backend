@@ -3,38 +3,38 @@ package handlers
 import "github.com/gin-gonic/gin"
 
 func RegisterRoutes(r *gin.Engine) {
-	// 创建认证处理器实例
 	authHandler := NewAuthHandler()
 
-	// 注册登录路由（无需认证）
 	r.POST("/login", authHandler.Login)
 
-	// 应用认证中间件到需要保护的路由组
 	api := r.Group("/api")
 	api.Use(authHandler.AuthMiddleware())
 	{
 		serviceHandler := NewServiceHandler()
 		endpointHandler := NewEndpointHandler()
+		navigationSiteHandler := NewNavigationSiteHandler()
 
-		// 服务管理
 		api.POST("/services", serviceHandler.CreateService)
 		api.GET("/services", serviceHandler.ListServices)
 		api.GET("/services/:id", serviceHandler.GetService)
 		api.PUT("/services/:id", serviceHandler.UpdateService)
 		api.DELETE("/services/:id", serviceHandler.DeleteService)
 
-		// 端点管理
 		api.POST("/services/:id/endpoints", endpointHandler.CreateEndpoint)
 		api.GET("/services/:id/endpoints", endpointHandler.ListEndpoints)
 
 		api.GET("/endpoints/:id", endpointHandler.GetEndpoint)
 		api.PUT("/endpoints/:id", endpointHandler.UpdateEndpoint)
 		api.DELETE("/endpoints/:id", endpointHandler.DeleteEndpoint)
-
 		api.POST("/endpoints/:id/check", endpointHandler.CheckEndpointNow)
+
+		api.GET("/navigation-sites", navigationSiteHandler.ListNavigationSites)
+		api.POST("/navigation-sites", navigationSiteHandler.CreateNavigationSite)
+		api.PUT("/navigation-sites/:id", navigationSiteHandler.UpdateNavigationSite)
+		api.DELETE("/navigation-sites/:id", navigationSiteHandler.DeleteNavigationSite)
+		api.PUT("/navigation-sites/order", navigationSiteHandler.ReorderNavigationSites)
 	}
 
-	// 健康检查（公开访问）
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{"status": "ok"})
 	})
