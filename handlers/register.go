@@ -13,6 +13,7 @@ func RegisterRoutes(r *gin.Engine) {
 		serviceHandler := NewServiceHandler()
 		endpointHandler := NewEndpointHandler()
 		navigationSiteHandler := NewNavigationSiteHandler()
+		todoHandler := NewTodoHandler()
 
 		api.POST("/services", serviceHandler.CreateService)
 		api.GET("/services", serviceHandler.ListServices)
@@ -33,6 +34,15 @@ func RegisterRoutes(r *gin.Engine) {
 		api.PUT("/navigation-sites/:id", navigationSiteHandler.UpdateNavigationSite)
 		api.DELETE("/navigation-sites/:id", navigationSiteHandler.DeleteNavigationSite)
 		api.PUT("/navigation-sites/order", navigationSiteHandler.ReorderNavigationSites)
+
+		api.GET("/todo-projects", todoHandler.ListTodoProjects)
+		api.POST("/todo-projects", todoHandler.CreateTodoProject)
+		api.PUT("/todo-projects/:project_id", todoHandler.UpdateTodoProject)
+		api.DELETE("/todo-projects/:project_id", todoHandler.DeleteTodoProject)
+		api.GET("/todo-projects/:project_id/items", todoHandler.ListTodoItems)
+		api.POST("/todo-projects/:project_id/items", todoHandler.CreateTodoItem)
+		api.PUT("/todo-projects/:project_id/items/:item_id", todoHandler.UpdateTodoItem)
+		api.DELETE("/todo-projects/:project_id/items/:item_id", todoHandler.DeleteTodoItem)
 	}
 
 	r.GET("/health", func(c *gin.Context) {
