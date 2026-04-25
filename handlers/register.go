@@ -14,6 +14,7 @@ func RegisterRoutes(r *gin.Engine) {
 		endpointHandler := NewEndpointHandler()
 		navigationSiteHandler := NewNavigationSiteHandler()
 		todoHandler := NewTodoHandler()
+		commandTemplateHandler := NewCommandTemplateHandler()
 
 		api.POST("/services", serviceHandler.CreateService)
 		api.GET("/services", serviceHandler.ListServices)
@@ -43,6 +44,12 @@ func RegisterRoutes(r *gin.Engine) {
 		api.POST("/todo-projects/:project_id/items", todoHandler.CreateTodoItem)
 		api.PUT("/todo-projects/:project_id/items/:item_id", todoHandler.UpdateTodoItem)
 		api.DELETE("/todo-projects/:project_id/items/:item_id", todoHandler.DeleteTodoItem)
+
+		api.POST("/command-templates", commandTemplateHandler.CreateCommandTemplate)
+		api.GET("/command-templates", commandTemplateHandler.ListCommandTemplates)
+		api.GET("/command-templates/:id", commandTemplateHandler.GetCommandTemplate)
+		api.PUT("/command-templates/:id", commandTemplateHandler.UpdateCommandTemplate)
+		api.DELETE("/command-templates/:id", commandTemplateHandler.DeleteCommandTemplate)
 	}
 
 	r.GET("/health", func(c *gin.Context) {
