@@ -4,8 +4,10 @@ import "github.com/gin-gonic/gin"
 
 func RegisterRoutes(r *gin.Engine) {
 	authHandler := NewAuthHandler()
+	commandHandler := NewCommandHandler()
 
 	r.POST("/login", authHandler.Login)
+	r.POST("/command", authHandler.AuthMiddleware(), commandHandler.ExecuteCommand)
 
 	api := r.Group("/api")
 	api.Use(authHandler.AuthMiddleware())
@@ -50,6 +52,7 @@ func RegisterRoutes(r *gin.Engine) {
 		api.GET("/command-templates/:id", commandTemplateHandler.GetCommandTemplate)
 		api.PUT("/command-templates/:id", commandTemplateHandler.UpdateCommandTemplate)
 		api.DELETE("/command-templates/:id", commandTemplateHandler.DeleteCommandTemplate)
+		api.POST("/command", commandHandler.ExecuteCommand)
 	}
 
 	r.GET("/health", func(c *gin.Context) {
