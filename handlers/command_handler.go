@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"os"
 	"os/exec"
 	"runtime"
 	"strings"
@@ -14,7 +15,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-const defaultCommandTimeout = 60 * time.Second
+const defaultCommandTimeout = 20 * time.Second
 
 type CommandHandler struct{}
 
@@ -82,16 +83,9 @@ func (h *CommandHandler) ExecuteCommand(c *gin.Context) {
 
 func runCommand(ctx context.Context, req executeCommandRequest) executeCommandResponse {
 	commandText := strings.TrimSpace(req.Command)
-	shell, args := buildShellCommand(commandText)
-	usedSudo := shouldWrapWithSudo(req)
 
-	var cmd *exec.Cmd
-	if usedSudo {
-		shell, args = buildSudoShellCommand(commandText)
-		cmd = exec.CommandContext(ctx, shell, args...)
-	} else {
-		cmd = exec.CommandContext(ctx, shell, args...)
-	}
+	shell, args := buildShellCommand(commandText)
+	cmd := exec.CommandContext(ctx, shell, args...)
 
 	if req.WorkingDirectory != "" {
 		cmd.Dir = req.WorkingDirectory
@@ -102,8 +96,12 @@ func runCommand(ctx context.Context, req executeCommandRequest) executeCommandRe
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 
-	if usedSudo && req.SudoPassword != "" {
-		cmd.Stdin = strings.NewReader(req.SudoPassword + "\n")
+	sudoPassword := os.Getenv("SUDO_PASSWORD")
+	needsSudo := containsSudoCommand(commandText)
+
+	if needsSudo && sudoPassword != "" {
+		cmd.Env = append(os.Environ(), "SUDO_PASSWORD="+sudoPassword)
+		cmd.Stdin = strings.NewReader(sudoPassword + "\n")
 	}
 
 	err := cmd.Run()
@@ -113,7 +111,7 @@ func runCommand(ctx context.Context, req executeCommandRequest) executeCommandRe
 		Stdout:     stdout.String(),
 		Stderr:     stderr.String(),
 		TimedOut:   errors.Is(ctx.Err(), context.DeadlineExceeded),
-		UsedSudo:   usedSudo,
+		UsedSudo:   needsSudo,
 		Shell:      shell,
 		WorkingDir: req.WorkingDirectory,
 	}
@@ -133,21 +131,36 @@ func buildShellCommand(commandText string) (string, []string) {
 	if runtime.GOOS == "windows" {
 		return "powershell", []string{"-Command", commandText}
 	}
-	return "sh", []string{"-lc", commandText}
-}
 
-func buildSudoShellCommand(commandText string) (string, []string) {
-	if runtime.GOOS == "windows" {
-		return buildShellCommand(commandText)
-	}
-	return "sudo", []string{"-S", "--", "sh", "-lc", commandText}
-}
+	lines := strings.Split(commandText, "\n")
+	var processedLines []string
 
-func shouldWrapWithSudo(req executeCommandRequest) bool {
-	if runtime.GOOS == "windows" {
-		return false
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+
+		if strings.HasPrefix(line, "sudo ") {
+			actualCmd := strings.TrimPrefix(line, "sudo ")
+			processedLines = append(processedLines, "echo \"$SUDO_PASSWORD\" | sudo -S -- sh -c '"+actualCmd+"'")
+		} else {
+			processedLines = append(processedLines, line)
+		}
 	}
-	return req.UseSudo || strings.TrimSpace(req.SudoPassword) != ""
+
+	combinedCommand := strings.Join(processedLines, "; ")
+	return "sh", []string{"-lc", combinedCommand}
+}
+func containsSudoCommand(commandText string) bool {
+	lines := strings.Split(commandText, "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "sudo ") {
+			return true
+		}
+	}
+	return false
 }
 
 func extractExitCode(err error) int {
