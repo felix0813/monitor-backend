@@ -184,6 +184,7 @@ func buildShellCommand(commandText string) (string, []string) {
 
 	lines := strings.Split(commandText, "\n")
 	var processedLines []string
+	hasSudo := false
 
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
@@ -192,16 +193,24 @@ func buildShellCommand(commandText string) (string, []string) {
 		}
 
 		if strings.HasPrefix(line, "sudo ") {
+			hasSudo = true
 			actualCmd := strings.TrimPrefix(line, "sudo ")
-			processedLines = append(processedLines, "echo \"$SUDO_PASSWORD\" | sudo -S -- sh -c '"+actualCmd+"'")
+			processedLines = append(processedLines, actualCmd)
 		} else {
 			processedLines = append(processedLines, line)
 		}
 	}
 
-	combinedCommand := strings.Join(processedLines, "; ")
-	return "sh", []string{"-lc", combinedCommand}
+	combinedCommand := strings.Join(processedLines, "\n")
+
+	if hasSudo {
+		wrappedCommand := "export SUDO_ASKPASS=/dev/null; echo \"$SUDO_PASSWORD\" | sudo -S bash <<'SUDO_SCRIPT_EOF'\n" + combinedCommand + "\nSUDO_SCRIPT_EOF"
+		return "bash", []string{"-c", wrappedCommand}
+	}
+
+	return "bash", []string{"-c", combinedCommand}
 }
+
 func containsSudoCommand(commandText string) bool {
 	lines := strings.Split(commandText, "\n")
 	for _, line := range lines {
