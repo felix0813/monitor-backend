@@ -23,8 +23,6 @@ type executeCommandRequest struct {
 	Command          string `json:"command"`
 	TimeoutSeconds   int    `json:"timeout_seconds"`
 	WorkingDirectory string `json:"working_directory"`
-	UseSudo          bool   `json:"use_sudo"`
-	SudoPassword     string `json:"sudo_password"`
 }
 
 type executeCommandResponse struct {
