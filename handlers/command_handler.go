@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"log"
 	"net/http"
 	"os"
 	"os/exec"
@@ -46,12 +47,14 @@ func NewCommandHandler() *CommandHandler {
 func (h *CommandHandler) ExecuteCommand(c *gin.Context) {
 	var req executeCommandRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
+		log.Printf("command_handler: invalid request body from ip=%s: %v", c.ClientIP(), err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid body"})
 		return
 	}
 
 	commandText := strings.TrimSpace(req.Command)
 	if commandText == "" {
+		log.Printf("command_handler: empty command rejected from ip=%s", c.ClientIP())
 		c.JSON(http.StatusBadRequest, gin.H{"error": "command is required"})
 		return
 	}
@@ -60,6 +63,14 @@ func (h *CommandHandler) ExecuteCommand(c *gin.Context) {
 	if req.TimeoutSeconds > 0 {
 		timeout = time.Duration(req.TimeoutSeconds) * time.Second
 	}
+
+	log.Printf(
+		"command_handler: executing command=%q timeout=%s working_dir=%q ip=%s",
+		summarizeCommand(commandText),
+		timeout,
+		req.WorkingDirectory,
+		c.ClientIP(),
+	)
 
 	ctx, cancel := context.WithTimeout(c.Request.Context(), timeout)
 	defer cancel()
@@ -74,6 +85,25 @@ func (h *CommandHandler) ExecuteCommand(c *gin.Context) {
 		statusCode = http.StatusRequestTimeout
 	} else if result.ErrorMessage != "" {
 		statusCode = http.StatusInternalServerError
+	}
+
+	log.Printf(
+		"command_handler: finished command=%q success=%t exit_code=%d timed_out=%t duration_ms=%d status=%d used_sudo=%t",
+		summarizeCommand(result.Command),
+		result.Success,
+		result.ExitCode,
+		result.TimedOut,
+		result.DurationMS,
+		statusCode,
+		result.UsedSudo,
+	)
+	if result.ErrorMessage != "" {
+		log.Printf(
+			"command_handler: command error command=%q error=%q stderr=%q",
+			summarizeCommand(result.Command),
+			result.ErrorMessage,
+			summarizeOutput(result.Stderr),
+		)
 	}
 
 	c.JSON(statusCode, result)
@@ -98,8 +128,11 @@ func runCommand(ctx context.Context, req executeCommandRequest) executeCommandRe
 	needsSudo := containsSudoCommand(commandText)
 
 	if needsSudo && sudoPassword != "" {
+		log.Printf("command_handler: sudo password detected for command=%q", summarizeCommand(commandText))
 		cmd.Env = append(os.Environ(), "SUDO_PASSWORD="+sudoPassword)
 		cmd.Stdin = strings.NewReader(sudoPassword + "\n")
+	} else if needsSudo {
+		log.Printf("command_handler: sudo command detected without configured password for command=%q", summarizeCommand(commandText))
 	}
 
 	err := cmd.Run()
@@ -123,6 +156,25 @@ func runCommand(ctx context.Context, req executeCommandRequest) executeCommandRe
 	}
 
 	return result
+}
+
+func summarizeCommand(commandText string) string {
+	return summarizeText(commandText, 200)
+}
+
+func summarizeOutput(output string) string {
+	return summarizeText(output, 300)
+}
+
+func summarizeText(text string, limit int) string {
+	normalized := strings.Join(strings.Fields(strings.TrimSpace(text)), " ")
+	if normalized == "" {
+		return ""
+	}
+	if len(normalized) <= limit {
+		return normalized
+	}
+	return normalized[:limit] + "..."
 }
 
 func buildShellCommand(commandText string) (string, []string) {
