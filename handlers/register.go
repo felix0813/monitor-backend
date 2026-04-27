@@ -17,6 +17,7 @@ func RegisterRoutes(r *gin.Engine) {
 		navigationSiteHandler := NewNavigationSiteHandler()
 		todoHandler := NewTodoHandler()
 		commandTemplateHandler := NewCommandTemplateHandler()
+		codeProjectHandler := NewCodeProjectHandler()
 
 		api.POST("/services", serviceHandler.CreateService)
 		api.GET("/services", serviceHandler.ListServices)
@@ -52,6 +53,13 @@ func RegisterRoutes(r *gin.Engine) {
 		api.GET("/command-templates/:id", commandTemplateHandler.GetCommandTemplate)
 		api.PUT("/command-templates/:id", commandTemplateHandler.UpdateCommandTemplate)
 		api.DELETE("/command-templates/:id", commandTemplateHandler.DeleteCommandTemplate)
+
+		api.POST("/code-projects", codeProjectHandler.CreateCodeProject)
+		api.GET("/code-projects", codeProjectHandler.ListCodeProjects)
+		api.GET("/code-projects/:id", codeProjectHandler.GetCodeProject)
+		api.PUT("/code-projects/:id", codeProjectHandler.UpdateCodeProject)
+		api.DELETE("/code-projects/:id", codeProjectHandler.DeleteCodeProject)
+
 		api.POST("/command", commandHandler.ExecuteCommand)
 	}
 
