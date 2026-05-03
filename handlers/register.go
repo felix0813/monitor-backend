@@ -18,6 +18,7 @@ func RegisterRoutes(r *gin.Engine) {
 		todoHandler := NewTodoHandler()
 		commandTemplateHandler := NewCommandTemplateHandler()
 		codeProjectHandler := NewCodeProjectHandler()
+		accountPasswordHandler := NewAccountPasswordHandler()
 
 		api.POST("/services", serviceHandler.CreateService)
 		api.GET("/services", serviceHandler.ListServices)
@@ -60,6 +61,10 @@ func RegisterRoutes(r *gin.Engine) {
 		api.PUT("/code-projects/:id", codeProjectHandler.UpdateCodeProject)
 		api.DELETE("/code-projects/:id", codeProjectHandler.DeleteCodeProject)
 
+		api.POST("/account-passwords", accountPasswordHandler.CreateAccountPassword)
+		api.GET("/account-passwords", accountPasswordHandler.ListAccountPasswords)
+		api.PUT("/account-passwords/:id", accountPasswordHandler.UpdateAccountPassword)
+		api.DELETE("/account-passwords/:id", accountPasswordHandler.DeleteAccountPassword)
 		api.POST("/command", commandHandler.ExecuteCommand)
 	}
 
